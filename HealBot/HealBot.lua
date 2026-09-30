@@ -5552,6 +5552,29 @@ function HealBot_SmartCast(hbGUID,hlthDelta)
     return w;
 end
 
+local HealBot_PeacemakerCacheTime, HealBot_PeacemakerCache = 0, false
+function HealBot_PlayerHasPeacemaker()
+    local now = GetTime()
+    if (now - HealBot_PeacemakerCacheTime) < 1 then
+        return HealBot_PeacemakerCache
+    end
+    HealBot_PeacemakerCacheTime = now
+    HealBot_PeacemakerCache = false
+    for i = 1, 40 do
+        local name, _, texture, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
+        if not name then break end
+        if spellId == 150605 or (type(texture) == "string" and string.find(string.lower(texture), "racial_innerpeace", 1, true)) then
+            HealBot_PeacemakerCache = true
+            break
+        end
+    end
+    return HealBot_PeacemakerCache
+end
+
+function HealBot_PeacemakerGroupHeal(unit)
+    return unit and HealBot_PlayerHasPeacemaker() and UnitInRange(unit) == 1 and (UnitInParty(unit) or UnitInRaid(unit) or UnitIsUnit(unit, "player"))
+end
+
 local uRange=0
 function HealBot_UnitInRange(spellName, unit) -- added by Diacono of Ursin
     if UnitGUID(unit)==HealBot_PlayerGUID then
@@ -5564,6 +5587,9 @@ function HealBot_UnitInRange(spellName, unit) -- added by Diacono of Ursin
         end
     elseif IsSpellInRange(spellName, unit) ~= nil then
         uRange = IsSpellInRange(spellName, unit)
+        if uRange ~= 1 and HealBot_PeacemakerGroupHeal(unit) then
+            uRange = 1
+        end
     elseif IsItemInRange(spellName, unit) ~= nil then
         uRange = IsItemInRange(spellName, unit)
     elseif UnitInRange(unit) == 1 then
